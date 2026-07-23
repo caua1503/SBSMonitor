@@ -1,8 +1,20 @@
 {
   "name": "sbsmonitor",
-  "module": "index.ts",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "bun run apps/agent/index.ts & bun run apps/server/index.ts",
+    "dev:agent": "bun run apps/agent/index.ts",
+    "dev:server": "bun run apps/server/index.ts",
+    "build:web": "bun build --compile --minify --target=browser ./apps/web/index.html --outfile ./dist/index.html",
+    "build:agent:windows": "bun build --compile --minify --target=bun-windows-x64 ./apps/agent/index.ts --outfile ./dist/agent.exe",
+    "build:server:windows": "bun build --compile --minify --target=bun-windows-x64 ./apps/server/index.ts --outfile ./dist/server.exe",
+    "build:windows": "bun run build:agent:windows && bun run build:server:windows",
+    "build:all": "bun run build:web && bun run build:windows"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

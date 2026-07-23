@@ -1,0 +1,18 @@
+{
+  "name": "@repo/shared",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./types": "./types.ts",
+    "./agent-env": "./agent-env.ts",
+    "./server-env": "./server-env.ts",
+    "./env": "./env.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
