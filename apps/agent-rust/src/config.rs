@@ -17,6 +17,7 @@ pub struct Config {
     pub collect_interval: Duration,
     pub request_timeout: Duration,
     pub ca_cert_path: Option<PathBuf>,
+    #[allow(dead_code)]
     pub executable_dir: PathBuf,
 }
 
@@ -48,9 +49,9 @@ impl Config {
         let server_url = required(&values, "SERVER_URL")?;
         let parsed = url::Url::parse(&server_url)
             .map_err(|error| AgentError::Config(format!("SERVER_URL is invalid: {error}")))?;
-        if parsed.scheme() != "https" || parsed.host_str().is_none() {
+        if (parsed.scheme() != "https" && parsed.scheme() != "http") || parsed.host_str().is_none() {
             return Err(AgentError::Config(
-                "SERVER_URL must be an absolute https URL".to_owned(),
+                "SERVER_URL must be an absolute http or https URL".to_owned(),
             ));
         }
 
@@ -129,8 +130,15 @@ mod tests {
     }
 
     #[test]
-    fn rejects_non_https_server() {
-        assert!(Config::from_values(values("http://example.test"), Path::new(".")).is_err());
+    fn accepts_http_and_https_server() {
+        assert!(Config::from_values(values("http://example.test"), Path::new(".")).is_ok());
+        assert!(Config::from_values(values("https://example.test"), Path::new(".")).is_ok());
+    }
+
+    #[test]
+    fn rejects_invalid_server_scheme() {
+        assert!(Config::from_values(values("ftp://example.test"), Path::new(".")).is_err());
+        assert!(Config::from_values(values("not-a-url"), Path::new(".")).is_err());
     }
 
     #[test]
