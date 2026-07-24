@@ -1,4 +1,4 @@
-use std::{sync::mpsc, thread, time::Duration};
+use std::{sync::mpsc, time::Duration};
 
 use log::{error, info};
 use windows_service::{

@@ -9,7 +9,7 @@ Windows 10/11 quando Bun for apropriado.
 ## Configuração
 
 Copie `.env.example` para `.env` no mesmo diretório de `sbsmonitor-agent-rust.exe`.
-`SERVER_URL` deve ser uma URL HTTPS. `CA_CERT_PATH` é opcional e aponta para um
+`SERVER_URL` deve ser uma URL HTTP ou HTTPS. `CA_CERT_PATH` é opcional e aponta para um
 arquivo PEM com uma ou mais CAs internas; essas CAs são acrescentadas às raízes
 WebPKI incorporadas. O agente nunca usa Schannel nem desativa a validação TLS.
 
@@ -57,3 +57,9 @@ O agente executa um ciclo imediatamente, registra novamente após falhas de rede
 ou `401`, e nunca encerra o serviço por erro de coleta ou envio. Os scripts Bun e
 de CI na raiz não são alterados; uma futura pipeline deve adicionar este crate
 explicitamente.
+
+## Limitações Conhecidas e Arquitetura
+
+- **Resolução de DNS em Thread Auxiliar**: A biblioteca padrão do Rust (`std::net::ToSocketAddrs`) realiza chamadas síncronas ao resolvedor de nomes do sistema operacional sem suporte a timeout configurável nativo. Para preservar a compatibilidade com o Windows XP e evitar a inclusão de um runtime assíncrono pesado (como `tokio`), a resolução DNS é executada em uma thread dedicada usando `mpsc::Receiver::recv_timeout`. Se o DNS estiver inalcançável, a thread principal do agente aborta a requisição e retorna o erro `AgentError::DnsTimeout` no tempo limite configurado (`REQUEST_TIMEOUT`); contudo, a thread auxiliar permanecerá temporariamente em background até que o resolvedor do próprio SO encerre a chamada bloqueante.
+- **Fallback de Logs em Serviços Restritos**: Quando o serviço executa sob contas de serviço restritas do Windows sem permissão de escrita na pasta de instalação, a criação do log principal (`agent-rust.log`) falha e o agente redireciona automaticamente a escrita para `%ProgramData%\SBSMonitor\agent-rust.log`.
+

@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{BufReader, Read, Write},
-    net::{TcpStream, ToSocketAddrs},
+    net::{SocketAddr, TcpStream, ToSocketAddrs},
     sync::Arc,
     time::Duration,
 };
@@ -16,6 +16,39 @@ use crate::{
     error::AgentError,
     models::{MetricsPayload, RegisterPayload},
 };
+
+/// Envolve a resolução DNS síncrona da std do Rust em uma thread separada para respeitar
+/// o `request_timeout` configurado. A std do Rust não disponibiliza timeout nativo para
+/// `ToSocketAddrs`, e adotou-se uma thread auxiliar leve em vez de migrar a aplicação para
+/// uma biblioteca/runtime assíncrona (como tokio/async-std), preservando o footprint pequeno
+/// e a compatibilidade com o Windows XP.
+pub fn resolve_socket_addr_with_timeout(
+    host: &str,
+    port: u16,
+    timeout: Duration,
+) -> Result<SocketAddr, AgentError> {
+    let host_owned = host.to_owned();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let res = (host_owned.as_str(), port)
+            .to_socket_addrs()
+            .map_err(AgentError::from)
+            .and_then(|mut addrs| {
+                addrs
+                    .next()
+                    .ok_or_else(|| AgentError::Http("host has no address".to_owned()))
+            });
+        let _ = tx.send(res);
+    });
+
+    match rx.recv_timeout(timeout) {
+        Ok(result) => result,
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Err(AgentError::DnsTimeout),
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(AgentError::Http(
+            "DNS resolution thread disconnected".to_owned(),
+        )),
+    }
+}
 
 /// HTTPS client that always sends the agent's header credentials.
 pub struct HttpClient {
@@ -87,10 +120,7 @@ impl HttpClient {
         let port = parsed
             .port_or_known_default()
             .ok_or_else(|| AgentError::Http("URL has no port".to_owned()))?;
-        let socket = (host, port)
-            .to_socket_addrs()?
-            .next()
-            .ok_or_else(|| AgentError::Http("host has no address".to_owned()))?;
+        let socket = resolve_socket_addr_with_timeout(host, port, self.config.request_timeout)?;
         let stream = TcpStream::connect_timeout(&socket, self.config.request_timeout)?;
         stream.set_read_timeout(Some(self.config.request_timeout))?;
         stream.set_write_timeout(Some(self.config.request_timeout))?;
@@ -174,8 +204,19 @@ fn parse_status(response: &[u8]) -> Result<u16, AgentError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn parses_http_status() {
         assert_eq!(parse_status(b"HTTP/1.1 201 Created\r\n").unwrap(), 201);
+    }
+
+    #[test]
+    fn dns_resolution_times_out() {
+        let result = resolve_socket_addr_with_timeout(
+            "1.1.1.1.invalid.example",
+            80,
+            Duration::from_nanos(1),
+        );
+        assert!(matches!(result, Err(AgentError::DnsTimeout)));
     }
 }
