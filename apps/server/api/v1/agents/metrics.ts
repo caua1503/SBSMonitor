@@ -35,6 +35,6 @@ export async function handleMetrics(req: Request, db: Database): Promise<Respons
   await db.metrics.insert({ agentId, payload, receivedAt });
   await evaluateMetricAlerts(db, agentId, payload, receivedAt);
 
-  console.log(`[Server] Metrics from ${agentId} — CPU: ${payload.cpu.used_percentage}% | RAM: ${payload.memory.used_percentage}%`);
+  console.log(`[Server] Metrics from ${agentId} — CPU: ${payload.cpu.used_percentage}% | RAM: ${payload.memory.used_percentage}% | Disk: ${payload.disk.used_percentage}%`);
   return ok({ received_at: new Date(receivedAt).toISOString() });
 }

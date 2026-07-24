@@ -1,4 +1,5 @@
 export interface ServerEnv {
+  host: string;
   port: number;
   /** Caminho do arquivo SQLite ou connection string futura do PostgreSQL */
   databaseUrl: string;
@@ -29,6 +30,7 @@ function readPercentageEnv(name: string, fallback: number): number {
 
 export function loadServerEnv(): ServerEnv {
   return {
+    host: Bun.env["SERVER_HOST"] ?? "0.0.0.0",
     port: Number(Bun.env["SERVER_PORT"] ?? "3000"),
     databaseUrl: Bun.env["DATABASE_URL"] ?? "./data/sbsmonitor.db",
     jwtSecret: Bun.env["JWT_SECRET"] ?? "dev-secret-change-in-production",

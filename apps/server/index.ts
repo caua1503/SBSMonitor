@@ -19,6 +19,7 @@ router.add("GET", "/health", async () => {
 });
 
 const server = Bun.serve({
+  hostname: SERVER_CONFIG.host,
   port: SERVER_CONFIG.port,
   async fetch(req) {
     const url = new URL(req.url);
@@ -66,8 +67,8 @@ const server = Bun.serve({
   },
 });
 
-console.log(`[Server] Listening on http://localhost:${server.port}`);
-console.log(`[Health Check] Listening on http://localhost:${server.port}/health`);
+console.log(`[Server] Listening on http://${server.hostname}:${server.port}`);
+console.log(`[Health Check] Listening on http://${server.hostname}:${server.port}/health`);
 
 // Graceful shutdown — fecha DB antes de encerrar
 const shutdown = (): void => {
